@@ -1,4 +1,7 @@
-# nothing here yet
+
+# this makes sorts much faster by using native byte order...
+export LC_ALL=C
+
 
 # namespaces for the partitions so far
 PART_GO=org.geneontology

@@ -1,6 +1,9 @@
 # miscellaneous definition used by dependencies
 include defs.mk
 
+ALLPARTS=go gene mesh
+all: $(ALLPARTS)
+
 # defines how to build tools included with this repo
 include tools.mk
 
@@ -9,19 +12,6 @@ include downloads.mk
 
 ###############
 # dataset production
-
-# this makes sorts much faster by using native byte order...
-export LC_ALL=C
-
-# Three ways to skip 1 header line:
-#  'tail -n +2'
-#   - can be slow using BSD/macOS tail, fine on linux
-#
-#  "awk '{if(NR>1)..."
-#   - good esp when you need to mix prefixes or multi-column extractions
-#
-#  'sed 1d'
-#   - BSD/macOS sed is different enough from linux to make it annoying beyond simple usage
 
 go: tools/parse_obo go.obo
 	@mkdir -p ${PART_GO}
@@ -57,3 +47,15 @@ mesh: tools/parse_mesh mesh_c.txt mesh_d.txt mesh_q.txt
 	sort -u ${PART_MESH}/${PART_MESH}.?.txt | gzip -9 > ${PART_MESH}/${PART_MESH}.txt.gz
 	sort -u ${PART_MESH}/nodes.?.txt | gzip -9 > ${PART_MESH}/nodes.txt.gz
 	rm ${PART_MESH}/${PART_MESH}.?.txt ${PART_MESH}/nodes.?.txt
+
+################
+
+# Three ways to skip 1 header line:
+#  'tail -n +2'
+#   - can be slow using BSD/macOS tail, fine on linux
+#
+#  "awk '{if(NR>1)..."
+#   - good esp when you need to mix prefixes or multi-column extractions
+#
+#  'sed 1d'
+#   - BSD/macOS sed is different enough from linux to make it annoying beyond simple usage

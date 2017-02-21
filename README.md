@@ -12,6 +12,13 @@ This repository is intended as a "starting off" point for more complex usage.
 If you need more data than what is currently provided, you should learn more
 about the data source itself and modify any code found here to do what you need!
 
+# Quick Start
+Make sure you have [Go installed](https://golang.org/dl/) along with GNU Make,
+then clone this repo, cd to it and run `make`. This will download and process
+all the data files and produce partitioned data as described below. If you would
+like to play with the code and other scripts you should clone this into the
+appropriate GOPATH.
+
 # Data Model
 Data processing currently uses a "partitioned graph" conceptual model focused
 on "nodes" within "partitions", and "edges" between nodes. This is reasonably

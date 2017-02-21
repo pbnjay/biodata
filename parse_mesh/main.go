@@ -1,5 +1,5 @@
-// Command parse_mesh is an ASCII MeSH format parser. It's actually UTF8 but for
-// some reason they call it ASCII...
+// Command parse_mesh is an ASCII MeSH format parser. (It's actually UTF8 but for
+// some reason they call it ASCII and rename it .bin instead of .txt)
 //
 // It takes three command-line arguments:
 //   1) the input ascii-mesh file
