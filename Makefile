@@ -48,6 +48,10 @@ mesh: tools/parse_mesh mesh_c.txt mesh_d.txt mesh_q.txt
 	sort -u ${PART_MESH}/nodes.?.txt | gzip -9 > ${PART_MESH}/nodes.txt.gz
 	rm ${PART_MESH}/${PART_MESH}.?.txt ${PART_MESH}/nodes.?.txt
 
+pubmed: tools/parse_pubmed medline_files.txt
+	@mkdir -p ${PART_PUBMED}
+	tools/parse_pubmed pubmed_data ${PART_PUBMED}/nodes.txt.gz ${PART_PUBMED}/${PART_MESH}.txt.gz
+
 ################
 
 # Three ways to skip 1 header line:
