@@ -46,3 +46,14 @@ gene_pubmed: gene2pubmed.gz
 	@mkdir -p ${PART_GENE}
 	gzcat gene2pubmed.gz | awk -F "\t" '{if(NR>1) {print $$2 "\t" $$3 "\treferenced_in"}}' | sort -u > ${PART_GENE}/${PART_PUBMED}.txt
 	gzip -9 ${PART_GENE}/${PART_PUBMED}.txt
+
+mesh: tools/parse_mesh mesh_c.txt mesh_d.txt mesh_q.txt
+	@mkdir -p ${PART_MESH}
+	tools/parse_mesh mesh_d.txt ${PART_MESH}/nodes.d.txt ${PART_MESH}/${PART_MESH}.d.txt
+	# these don't actually have edges, but we try anyway...
+	tools/parse_mesh mesh_c.txt ${PART_MESH}/nodes.c.txt ${PART_MESH}/${PART_MESH}.c.txt
+	tools/parse_mesh mesh_q.txt ${PART_MESH}/nodes.q.txt ${PART_MESH}/${PART_MESH}.q.txt
+	# combine all three!
+	sort -u ${PART_MESH}/${PART_MESH}.?.txt | gzip -9 > ${PART_MESH}/${PART_MESH}.txt.gz
+	sort -u ${PART_MESH}/nodes.?.txt | gzip -9 > ${PART_MESH}/nodes.txt.gz
+	rm ${PART_MESH}/${PART_MESH}.?.txt ${PART_MESH}/nodes.?.txt
