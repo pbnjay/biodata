@@ -5,8 +5,11 @@
 //   2) the nodes output file (3-column tab-delimited)
 //   3) the edges output file (4-column tab-delimited, for mesh descriptor/qualifier tags)
 //
-// Note: many fields within the XML documents are not parsed or used. Updates are not yet
-// consolidated so changes to prior data will not be visible.
+// Note: many fields within the XML documents are not parsed or used. Updates
+// and deletions are consolidated so changes to prior data will be visible.
+//
+// NB On the full dataset for February 2017, this process takes approx 3.5
+// hours on a single-threaded 4Ghz processor (and results in 3GB compressed).
 package main
 
 import (
@@ -14,15 +17,16 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
 
 type CitationSet struct {
-	Citations []Citation `xml:"PubmedArticle>MedlineCitation"`
+	Citations       []Citation `xml:"PubmedArticle>MedlineCitation"`
+	DeleteCitations []int      `xml:"DeleteCitation>PMID"`
 }
 
 type MeshDescriptor struct {
@@ -63,7 +67,15 @@ func parsePubmed(r io.Reader, nfile, efile io.Writer) error {
 		return err
 	}
 
+	for _, pmid := range cs.DeleteCitations {
+		outputPMIDs[pmid] = struct{}{}
+	}
+
 	for _, c := range cs.Citations {
+		if _, found := outputPMIDs[c.PMID]; found {
+			continue
+		}
+		outputPMIDs[c.PMID] = struct{}{}
 		name := ""
 		if len(c.Authors) > 0 {
 			name = c.Authors[0]
@@ -106,7 +118,8 @@ func parsePubmed(r io.Reader, nfile, efile io.Writer) error {
 		for _, qd := range c.MeshHeadings {
 			h := qd.Desc
 			if h.MeshUI == "" {
-				panic("no UI for mesh topic?!? " + h.Name)
+				fmt.Fprintf(os.Stderr, "no UI for mesh d-topic?!? '%s' in PMID %d\n", h.Name, c.PMID)
+				break
 			}
 			ctx := "minor"
 			if h.MajorTopic == "Y" {
@@ -121,7 +134,8 @@ func parsePubmed(r io.Reader, nfile, efile io.Writer) error {
 					pred = "has_major_topic_qualifier"
 				}
 				if q.MeshUI == "" {
-					panic("no UI for mesh topic?!? " + q.Name)
+					fmt.Fprintf(os.Stderr, "no UI for mesh q-topic?!? '%s' in PMID %d\n", q.Name, c.PMID)
+					break
 				}
 
 				// NB this may appear flipped at first glance. The qualifier is primary
@@ -137,6 +151,10 @@ func parsePubmed(r io.Reader, nfile, efile io.Writer) error {
 
 	return nil
 }
+
+var (
+	outputPMIDs = make(map[int]struct{}, 100000)
+)
 
 func main() {
 	if len(os.Args) != 4 {
@@ -158,8 +176,8 @@ func main() {
 	defer nfile.Close()
 	defer efile.Close()
 
-	var zn io.Writer = nfile
-	var ze io.Writer = efile
+	var zn = io.Writer(nfile)
+	var ze = io.Writer(efile)
 	if strings.HasSuffix(os.Args[2], ".gz") {
 		znf, err := gzip.NewWriterLevel(nfile, gzip.BestCompression)
 		if err != nil {
@@ -178,32 +196,44 @@ func main() {
 		ze = zef
 	}
 
+	files := []string{}
 	err = filepath.Walk(os.Args[1], func(wpath string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
-		if !strings.HasPrefix(info.Name(), "medline") || !strings.HasSuffix(info.Name(), ".xml.gz") {
-			return nil
+		if strings.HasPrefix(info.Name(), "medline") && strings.HasSuffix(info.Name(), ".xml.gz") {
+			files = append(files, wpath)
 		}
-
-		f, err := os.Open(wpath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		rz, err := gzip.NewReader(f)
-		if err != nil {
-			return err
-		}
-		defer rz.Close()
-
-		log.Println(wpath)
-		////////////////
-		return parsePubmed(rz, zn, ze)
+		return nil
 	})
 
 	if err != nil {
 		panic(err)
 	}
+
+	// process in reverse order so we see updated citations and deletion lists
+	// first, then we can skip the original citations when we see them later.
+	sort.Sort(sort.Reverse(sort.StringSlice(files)))
+
+	for i, wpath := range files {
+		f, err := os.Open(wpath)
+		if err != nil {
+			panic(err)
+		}
+
+		rz, err := gzip.NewReader(f)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Fprintf(os.Stderr, "%5d/%d %s\n", i+1, len(files), wpath)
+
+		err = parsePubmed(rz, zn, ze)
+		if err != nil {
+			panic(err)
+		}
+		rz.Close()
+		f.Close()
+	}
+
 }
